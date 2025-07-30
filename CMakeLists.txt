@@ -86,6 +86,11 @@ target_link_libraries(maxzip
         ${MAXZIP_LIBRARIES}
 )
 
+target_link_libraries(maxzip_a
+    PUBLIC
+        ${MAXZIP_LIBRARIES}
+)
+
 if(MAXZIP_TESTS)
     enable_testing()
     add_subdirectory(tests)
