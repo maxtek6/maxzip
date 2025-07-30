@@ -98,8 +98,9 @@ namespace maxzip
         {
 
             size_t decompressed_size = output_size;
-            if (BrotliDecoderDecompress(
-                    input_size, input, &decompressed_size, output) != BROTLI_DECODER_RESULT_SUCCESS)
+            const BrotliDecoderResult result = BrotliDecoderDecompress(
+                input_size, input, &decompressed_size, output);
+            if (result != BROTLI_DECODER_RESULT_SUCCESS)
             {
                 throw std::runtime_error("Decompression failed.");
             }

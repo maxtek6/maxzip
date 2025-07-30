@@ -105,6 +105,11 @@ static void test_block_compression(const std::unique_ptr<maxzip::compressor> &co
     MAXTEST_ASSERT(actual_compressed_size <= max_compressed_size);
     compressed_data.resize(actual_compressed_size);
 
+    // try to force a decompression error
+    MAXTEST_ASSERT(!try_func([&]() {
+        decompressed_size = decompressor->decompress(compressed_data.data(), actual_compressed_size, nullptr, 0);
+    }));
+
     // decompress the data
     MAXTEST_ASSERT(try_func([&]() {
         decompressed_data.resize(input_data.size());
