@@ -108,23 +108,21 @@ namespace maxzip
     {
         std::unique_ptr<zstd_compressor> compressor = std::make_unique<zstd_compressor>();
 
-        const std::unordered_map<ZSTD_cParameter, std::optional<int>> param_map = {
-            {ZSTD_c_compressionLevel, params.level},
-            {ZSTD_c_windowLog, params.window_log},
-            {ZSTD_c_hashLog, params.hash_log},
-            {ZSTD_c_chainLog, params.chain_log},
-            {ZSTD_c_searchLog, params.search_log},
-            {ZSTD_c_minMatch, params.min_match},
-            {ZSTD_c_targetLength, params.target_length},
-            {ZSTD_c_strategy, params.strategy}
-        };
+        std::unordered_map<ZSTD_cParameter, std::optional<int>> param_map; 
+        param_map[ZSTD_c_compressionLevel] = params.level;
+        param_map[ZSTD_c_windowLog] = params.window_log;
+        param_map[ZSTD_c_hashLog] = params.hash_log;
+        param_map[ZSTD_c_chainLog] = params.chain_log;
+        param_map[ZSTD_c_searchLog] = params.search_log;
+        param_map[ZSTD_c_minMatch] = params.min_match;
+        param_map[ZSTD_c_targetLength] = params.target_length;
+        param_map[ZSTD_c_strategy] = params.strategy;
 
-        const std::unordered_map<ZSTD_cParameter, std::optional<bool>> flag_map = {
-            {ZSTD_c_enableLongDistanceMatching, params.enable_long_distance_matching},
-            {ZSTD_c_contentSizeFlag, params.enable_content_size},
-            {ZSTD_c_checksumFlag, params.enable_checksum},
-            {ZSTD_c_dictIDFlag, params.enable_dict_id}
-        };
+        std::unordered_map<ZSTD_cParameter, std::optional<bool>> flag_map;
+        flag_map[ZSTD_c_enableLongDistanceMatching] = params.enable_long_distance_matching;
+        flag_map[ZSTD_c_contentSizeFlag] = params.enable_content_size;
+        flag_map[ZSTD_c_checksumFlag] = params.enable_checksum;
+        flag_map[ZSTD_c_dictIDFlag] = params.enable_dict_id;
 
         for (const auto &[key, value] : param_map)
         {
