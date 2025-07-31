@@ -179,6 +179,9 @@ MAXTEST_MAIN
         decompress_params.window_log_max = 0;
         decompressor_result = try_create_decompressor(maxzip::create_zstd_decompressor, decompress_params);
         MAXTEST_ASSERT(decompressor_result.first && (decompressor_result.second != nullptr));
+        decompress_params.window_log_max.reset();
+        decompressor_result = try_create_decompressor(maxzip::create_zstd_decompressor, decompress_params);
+        MAXTEST_ASSERT(decompressor_result.first && (decompressor_result.second != nullptr));
         test_block_compression(compressor_result.second, decompressor_result.second);
     };
 }
