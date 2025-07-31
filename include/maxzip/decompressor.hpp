@@ -41,11 +41,6 @@ namespace maxzip
     struct zstd_decompressor_params
     {
         std::optional<int> window_log_max;
-        std::optional<int> decoder_format;
-        std::optional<bool> stable_output_buffer;
-        std::optional<bool> ignore_checksum;
-        std::optional<bool> multiple_dictionaries;
-        std::optional<bool> disable_huffman_assembly;
     };
 
     decompressor *create_brotli_decompressor(const brotli_decompressor_params &params = {});
