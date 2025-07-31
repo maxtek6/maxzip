@@ -32,6 +32,7 @@
 
 #include <zstd.h>
 
+#include <functional>
 #include <memory>
 #include <stdexcept>
 
@@ -44,19 +45,6 @@ namespace maxzip
         return (value >= min && value <= max);
     }
 
-    class zstd_compressor : public compressor
-    {
-    public:
-        zstd_compressor(int level);
-        ~zstd_compressor();
-        size_t compress(
-            const uint8_t* input, 
-            size_t input_size, 
-            uint8_t* output, 
-            size_t& output_size) override;
-    private:
-        ZSTD_CCtx* _cctx;
-    };
 }
 
 #endif

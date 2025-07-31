@@ -38,3 +38,4 @@ endif()
 
 maxtest_add_test(unit brotli::block)
 maxtest_add_test(unit zlib::block)
+maxtest_add_test(unit zstd::block)

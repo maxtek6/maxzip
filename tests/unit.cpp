@@ -161,4 +161,27 @@ MAXTEST_MAIN
         MAXTEST_ASSERT(decompressor_result.first && (decompressor_result.second != nullptr));
         test_block_compression(compressor_result.second, decompressor_result.second);
     };
+
+    MAXTEST_TEST_CASE(zstd::block)
+    {
+        maxzip::zstd_compressor_params compress_params;
+        maxzip::zstd_decompressor_params decompress_params;
+        compress_params.window_log = -100;
+        auto compressor_result = try_create_compressor(maxzip::create_zstd_compressor, compress_params);
+        MAXTEST_ASSERT(!compressor_result.first && (compressor_result.second == nullptr));
+        compress_params.window_log = 0;
+        compress_params.enable_checksum = true;
+        compressor_result = try_create_compressor(maxzip::create_zstd_compressor, compress_params);
+        MAXTEST_ASSERT(compressor_result.first && (compressor_result.second != nullptr));
+        decompress_params.window_log_max = -100;
+        auto decompressor_result = try_create_decompressor(maxzip::create_zstd_decompressor, decompress_params);
+        MAXTEST_ASSERT(!decompressor_result.first && (decompressor_result.second == nullptr));
+        decompress_params.window_log_max = 0;
+        decompressor_result = try_create_decompressor(maxzip::create_zstd_decompressor, decompress_params);
+        MAXTEST_ASSERT(decompressor_result.first && (decompressor_result.second != nullptr));
+        decompress_params.window_log_max.reset();
+        decompressor_result = try_create_decompressor(maxzip::create_zstd_decompressor, decompress_params);
+        MAXTEST_ASSERT(decompressor_result.first && (decompressor_result.second != nullptr));
+        test_block_compression(compressor_result.second, decompressor_result.second);
+    };
 }
