@@ -14,10 +14,7 @@ namespace maxzip
     public:
         static void deleter(ContextType *ctx)
         {
-            if (ctx != nullptr)
-            {
-                DeleterFunc(ctx);
-            }
+            static_cast<void>(DeleterFunc(ctx));
         }
 
         zstd_context(ContextType *ctx) : _ctx(ctx, deleter)
@@ -27,7 +24,8 @@ namespace maxzip
         void set_parameter(ParameterType key, int value)
         {
             const size_t ret = SetParameterFunc(_ctx.get(), key, value);
-            if (ZSTD_isError(ret))
+            const bool is_error = (ZSTD_isError(ret) == 1);
+            if (is_error)
             {
                 throw std::runtime_error("Failed to set Zstandard parameter: " + std::to_string(key));
             }
