@@ -31,7 +31,6 @@
 
 #include <maxzip/compressor.hpp>
 #include <maxzip/decompressor.hpp>
-#include <maxzip/encoder.hpp>
-#include <maxzip/decoder.hpp>
+#include <maxzip/stream.hpp>
 
 #endif

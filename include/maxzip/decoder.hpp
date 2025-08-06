@@ -35,15 +35,30 @@ namespace maxzip
     class decoder
     {
     public:
-        void init();
-        void update(
-            const uint8_t* input,
+        /**
+         * @brief Initialize the decoder.
+         * @param flush if set, may flush incomplete frames. This is typically ignored,
+         * with the exception of zlib.
+         */
+        virtual void init(bool flush = false) = 0;
+
+        /**
+         * @brief Decompress data stream.
+         *
+         * @param input_func Function to retrieve input buffer.
+         * @param output_func Function to retrieve output buffer.
+         * @param notify_func Function to notify actual output size.
+         * @param flush Whether to flush incomplete frames. This is typically
+         * ignored, with the exception of zlib.
+         */
+        virtual bool decode(
+            const uint8_t *input, 
             size_t input_size,
-            uint8_t* output,
-            size_t& output_size);
-        void finish(
-            uint8_t* output,
-            size_t& output_size);
+            size_t &read_size,
+            uint8_t *output,
+            size_t output_size,
+            size_t &write_size
+        ) = 0;
     };
 
 }

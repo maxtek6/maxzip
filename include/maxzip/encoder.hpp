@@ -35,16 +35,31 @@ namespace maxzip
     class encoder
     {
     public:
-        void init();
-        void update(
-            const uint8_t* input, 
-            size_t input_size, 
-            uint8_t* output, 
-            size_t& output_size);
-        void finish(
-            uint8_t* output, 
-            size_t& output_size);
-    };
+        /**
+         * @brief Initialize the encoder state.
+         */
+        virtual void init(bool flush = false) = 0;
+        
+        /**
+         * @brief Advance encoder state.
+         * @param input Pointer to input data. If no input is available, this should be nullptr.
+         * @param input_size Size of input data. If no input is available, this should be 0.
+         * @param read_size Size of input data processed.
+         * @param output Pointer to output buffer.
+         * @param output_size Size of output buffer.
+         * @param write_size Size of output data written.
+         * @return true if still processing, false if compression is complete.
+         */
+        virtual bool encode(
+            const uint8_t *input, 
+            size_t input_size,
+            size_t &read_size,
+            uint8_t *output,
+            size_t output_size,
+            size_t &write_size) = 0;
+};
+
+
 }
 
 #endif
