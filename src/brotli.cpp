@@ -194,8 +194,68 @@ namespace maxzip
         }
     };
 
-    template <typename HandleType, typename ConfigType>
-    class brotli_stream : public basic_stream
+    template <
+        typename QueryFuncType,
+        QueryFuncType QueryFunc,
+        typename ProcessFuncType,
+        ProcessFuncType ProcessFunc,
+        typename... ArgTypes>
+    class stream_functions
+    {
+    public:
+        template <typename ContextType>
+        static void stream_process(
+            ContextType *ctx,
+            ArgTypes... args,
+            const uint8_t *input,
+            size_t input_size,
+            size_t *read_size,
+            uint8_t *output,
+            size_t output_size,
+            size_t *write_size)
+        {
+            size_t available_in = input_size;
+            size_t available_out = output_size;
+            const int rc = ProcessFunc(ctx, args..., &available_in, &input, &available_out, &output, nullptr);
+            if (rc != BROTLI_TRUE)
+            {
+                throw std::runtime_error("stream processing failed.");
+            }
+            if (read_size)
+            {
+                *read_size = input_size - available_in;
+            }
+            *write_size = output_size - available_out;
+        }
+
+        template <typename ContextType>
+        static bool stream_query(ContextType *ctx)
+        {
+            bool result(false);
+            const int rc = QueryFunc(ctx);
+            if (rc == BROTLI_FALSE)
+            {
+                result = true;
+            }
+            return result;
+        }
+    };
+
+    using encoder_functions = stream_functions<
+        decltype(&BrotliEncoderIsFinished),
+        &BrotliEncoderIsFinished,
+        decltype(&BrotliEncoderCompressStream),
+        &BrotliEncoderCompressStream,
+        BrotliEncoderOperation>;
+
+    using decoder_functions = stream_functions<
+        decltype(&BrotliDecoderIsFinished),
+        &BrotliDecoderIsFinished,
+        decltype(&BrotliDecoderDecompressStream),
+        &BrotliDecoderDecompressStream>;
+
+    template <typename HandleType, typename ConfigType, typename StreamFunctions>
+    class brotli_stream : public basic_stream, public StreamFunctions
     {
     public:
         void setup() override
@@ -233,7 +293,7 @@ namespace maxzip
         decltype(&BrotliDecoderSetParameter),
         &BrotliDecoderSetParameter>;
 
-    class brotli_encoder : public brotli_stream<encoder_handle, encoder_config>
+    class brotli_encoder : public brotli_stream<encoder_handle, encoder_config, encoder_functions>
     {
     public:
         brotli_encoder(const brotli_encoder_params &params)
@@ -264,8 +324,15 @@ namespace maxzip
             bool flush) override
         {
             const BrotliEncoderOperation op = flush ? BROTLI_OPERATION_FLUSH : BROTLI_OPERATION_PROCESS;
-            compress_stream(op, input, input_size, &read_size, output, output_size,
-                            &write_size);
+            stream_process(
+                _handle.get(),
+                op,
+                input,
+                input_size,
+                &read_size,
+                output,
+                output_size,
+                &write_size);
         }
 
         bool finish(
@@ -273,51 +340,81 @@ namespace maxzip
             size_t output_size,
             size_t &write_size) override
         {
-            if(is_finalizing())
+            if (stream_query(_handle.get()))
             {
-                compress_stream(BROTLI_OPERATION_FINISH, nullptr, 0, nullptr, output, output_size,
-                                &write_size);
+                stream_process(
+                    _handle.get(),
+                    BROTLI_OPERATION_FINISH,
+                    nullptr, 0, &write_size, output, output_size, &write_size);
             }
-            return is_finalizing();
+            return stream_query(_handle.get());
         }
 
-    private:
-        void compress_stream(BrotliEncoderOperation op,
-                             const uint8_t *input,
-                             size_t input_size,
-                             size_t *read_size,
-                             uint8_t *output,
-                             size_t output_size,
-                             size_t *write_size)
+        size_t input_block_size() const override
         {
-            const int rc = BrotliEncoderCompressStream(
+            return 16000;
+        }
+
+        size_t output_block_size() const override
+        {
+            return 16000;
+        }
+    };
+
+    class brotli_decoder : public brotli_stream<decoder_handle, decoder_config, decoder_functions>
+    {
+    public:
+        brotli_decoder(const brotli_decoder_params &params)
+        {
+            _config._flags[BROTLI_DECODER_PARAM_DISABLE_RING_BUFFER_REALLOCATION] = params.disable_ring_buffer_reallocation;
+            _config._flags[BROTLI_DECODER_PARAM_LARGE_WINDOW] = params.large_window;
+            _handle.create();
+            _config.configure(_handle.get());
+            _handle.reset();
+        }
+
+    protected:
+        void process(
+            const uint8_t *input,
+            size_t input_size,
+            size_t &read_size,
+            uint8_t *output,
+            size_t output_size,
+            size_t &write_size,
+            bool flush) override
+        {
+            stream_process(
                 _handle.get(),
-                op,
-                &input_size,
-                &input,
-                &output_size,
-                &output,
-                write_size);
-            if (rc != BROTLI_TRUE)
-            {
-                throw std::runtime_error("Compression failed.");
-            }
-            if(read_size != nullptr)
-            {
-                *read_size = input_size;
-            }
-            *write_size = output_size;
+                input,
+                input_size,
+                &read_size,
+                output,
+                output_size,
+                &write_size);
         }
 
-        bool is_finalizing() const
+        bool finish(
+            uint8_t *output,
+            size_t output_size,
+            size_t &write_size) override
         {
-            bool finalizing(false);
-            const int rc = BrotliEncoderIsFinished(_handle.get());
-            if (rc == BROTLI_FALSE)
+            if (stream_query(_handle.get()))
             {
-                finalizing = true;
+                stream_process(
+                    _handle.get(),
+                    nullptr, 0, &write_size, output, output_size, &write_size);
             }
-            return finalizing;
+            return stream_query(_handle.get());
+        }
+
+        size_t input_block_size() const override
+        {
+            return 16000;
+        }
+
+        size_t output_block_size() const override
+        {
+            return 16000;
         }
     };
 
@@ -333,7 +430,7 @@ namespace maxzip
     }
 
     decompressor *create_brotli_decompressor(
-        const brotli_decompressor_params &params)
+        const brotli_decompressor_params & /* unused */)
     {
         return new brotli_decompressor();
     }
@@ -342,5 +439,11 @@ namespace maxzip
         const brotli_encoder_params &params)
     {
         return new brotli_encoder(params);
+    }
+
+    stream *create_brotli_decoder(
+        const brotli_decoder_params &params)
+    {
+        return new brotli_decoder(params);
     }
 }

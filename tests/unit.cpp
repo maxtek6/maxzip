@@ -22,32 +22,18 @@
 
 #include <maxtest.hpp>
 #include <maxzip.hpp>
+
+#include <algorithm>
 #include <memory>
+#include <random>
 
-template <typename CreateFunction, typename ParamType>
-static std::pair<bool, std::unique_ptr<maxzip::compressor>> try_create_compressor(CreateFunction create_func, ParamType &&param)
+template <typename ObjectType, typename CreateFunction, typename... Args>
+static std::pair<bool, std::unique_ptr<ObjectType>> try_create(CreateFunction create_func, Args &&...args)
 {
-    std::pair<bool, std::unique_ptr<maxzip::compressor>> result;
+    std::pair<bool, std::unique_ptr<ObjectType>> result;
     try
     {
-        result.second = std::unique_ptr<maxzip::compressor>(create_func(std::forward<ParamType>(param)));
-        result.first = true;
-    }
-    catch (...)
-    {
-        result.first = false;
-    }
-
-    return result;
-}
-
-template <typename CreateFunction, typename... Args>
-static std::pair<bool, std::unique_ptr<maxzip::decompressor>> try_create_decompressor(CreateFunction create_func, Args &&...args)
-{
-    std::pair<bool, std::unique_ptr<maxzip::decompressor>> result;
-    try
-    {
-        result.second = std::unique_ptr<maxzip::decompressor>(create_func(std::forward<Args>(args)...));
+        result.second = std::unique_ptr<ObjectType>(create_func(std::forward<Args>(args)...));
         result.first = true;
     }
     catch (...)
@@ -72,6 +58,88 @@ static bool try_func(const std::function<void()> &func)
     }
     return result;
 }
+
+class stream_processor
+{
+public:
+    stream_processor()
+    {
+        std::default_random_engine generator(std::random_device{}());
+        std::sample(
+            characters.begin(), characters.end(),
+            std::back_inserter(_input),
+            input_size,
+            generator);
+    }
+
+    void test_encode_decode(const std::unique_ptr<maxzip::stream> &encoder,
+                            const std::unique_ptr<maxzip::stream> &decoder,
+                            bool flush)
+    {
+        std::istringstream input_stream(_input);
+        std::stringstream compressed_stream;
+        std::ostringstream output_stream;
+
+        process_stream(encoder, input_stream, compressed_stream, flush);
+        compressed_stream.seekg(0);
+        process_stream(decoder, compressed_stream, output_stream, flush);
+        output_stream.seekp(0);
+        std::string output = output_stream.str();
+        MAXTEST_ASSERT(std::equal(
+            _input.begin(), _input.end(),
+            output.begin(), output.end()));
+    }
+
+private:
+    static void process_stream(
+        const std::unique_ptr<maxzip::stream> &stream,
+        std::istream &input_stream,
+        std::ostream &output_stream,
+        bool flush)
+    {
+        const auto block_sizes = stream->block_sizes();
+        std::vector<uint8_t> input_buffer(block_sizes.first);
+        std::vector<uint8_t> output_buffer(block_sizes.second / (flush ? 2 : 1));
+        size_t available_input = 0;
+        bool finalizing(true);
+        size_t finalizing_write_size = 0;
+
+        stream->initialize(flush);
+        while(!input_stream.eof() || available_input > 0)
+        {
+            if (available_input > 0)
+            {
+                auto [read_size, write_size] = stream->update(
+                input_buffer.data(), available_input,
+                output_buffer.data(), output_buffer.size());
+                if (write_size > 0)
+                {
+                    output_stream.write(reinterpret_cast<const char *>(output_buffer.data()), write_size);
+                }
+                available_input -= read_size;
+            }
+            else
+            {
+                input_stream.read(reinterpret_cast<char *>(input_buffer.data()), input_buffer.size());
+                available_input = static_cast<size_t>(input_stream.gcount());
+            }
+        }
+
+        while(finalizing)
+        {
+            finalizing = stream->finalize(
+                output_buffer.data(), output_buffer.size(), finalizing_write_size);
+            if (finalizing_write_size > 0)
+            {
+                output_stream.write(reinterpret_cast<const char *>(output_buffer.data()), finalizing_write_size);
+            }
+        }
+    }
+
+    const size_t input_size = 1000000;
+    const std::string characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    std::string _input;
+};
 
 static void test_block_compression(const std::unique_ptr<maxzip::compressor> &compressor,
                             const std::unique_ptr<maxzip::decompressor> &decompressor)
@@ -119,26 +187,34 @@ static void test_block_compression(const std::unique_ptr<maxzip::compressor> &co
     MAXTEST_ASSERT(std::equal(decompressed_data.begin(), decompressed_data.end(), input_data.begin()));
 }
 
+static void test_stream_compression(const std::unique_ptr<maxzip::stream> &encoder,
+                            const std::unique_ptr<maxzip::stream> &decoder)
+{
+    stream_processor processor;
+    processor.test_encode_decode(encoder, decoder, false);
+    processor.test_encode_decode(encoder, decoder, true);
+}
+
 MAXTEST_MAIN
 {
     MAXTEST_TEST_CASE(brotli::block)
     {
         maxzip::brotli_compressor_params params;
         params.quality = -100;
-        auto compressor_result = try_create_compressor(maxzip::create_brotli_compressor, params);
+        auto compressor_result = try_create<maxzip::compressor>(maxzip::create_brotli_compressor, params);
         MAXTEST_ASSERT(!compressor_result.first && (compressor_result.second == nullptr));
         params.quality.reset();
         params.window_size = -100;
-        compressor_result = try_create_compressor(maxzip::create_brotli_compressor, params);
+        compressor_result = try_create<maxzip::compressor>(maxzip::create_brotli_compressor, params);
         MAXTEST_ASSERT(!compressor_result.first && (compressor_result.second == nullptr));
         params.window_size.reset();
         params.mode = -100;
-        compressor_result = try_create_compressor(maxzip::create_brotli_compressor, params);
+        compressor_result = try_create<maxzip::compressor>(maxzip::create_brotli_compressor, params);
         MAXTEST_ASSERT(!compressor_result.first && (compressor_result.second == nullptr));
         params.mode.reset();
-        compressor_result = try_create_compressor(maxzip::create_brotli_compressor, params);
+        compressor_result = try_create<maxzip::compressor>(maxzip::create_brotli_compressor, params);
         MAXTEST_ASSERT(compressor_result.first && (compressor_result.second != nullptr));
-        auto decompressor_result = try_create_decompressor(maxzip::create_brotli_decompressor, maxzip::brotli_decompressor_params{});
+        auto decompressor_result = try_create<maxzip::decompressor>(maxzip::create_brotli_decompressor, maxzip::brotli_decompressor_params{});
         MAXTEST_ASSERT(decompressor_result.first && (decompressor_result.second != nullptr));
         test_block_compression(compressor_result.second, decompressor_result.second);
     };
@@ -148,16 +224,16 @@ MAXTEST_MAIN
         maxzip::zlib_compressor_params compress_params;
         maxzip::zlib_decompressor_params decompress_params;
         compress_params.level = -100;
-        auto compressor_result = try_create_compressor(maxzip::create_zlib_compressor, compress_params);
+        auto compressor_result = try_create<maxzip::compressor>(maxzip::create_zlib_compressor, compress_params);
         MAXTEST_ASSERT(!compressor_result.first && (compressor_result.second == nullptr));
         compress_params.level.reset();
         compress_params.window_bits = -100;
-        compressor_result = try_create_compressor(maxzip::create_zlib_compressor, compress_params);
+        compressor_result = try_create<maxzip::compressor>(maxzip::create_zlib_compressor, compress_params);
         MAXTEST_ASSERT(!compressor_result.first && (compressor_result.second == nullptr));
         compress_params.window_bits.reset();
-        compressor_result = try_create_compressor(maxzip::create_zlib_compressor, compress_params);
+        compressor_result = try_create<maxzip::compressor>(maxzip::create_zlib_compressor, compress_params);
         MAXTEST_ASSERT(compressor_result.first && (compressor_result.second != nullptr));
-        auto decompressor_result = try_create_decompressor(maxzip::create_zlib_decompressor, decompress_params);
+        auto decompressor_result = try_create<maxzip::decompressor>(maxzip::create_zlib_decompressor, decompress_params);
         MAXTEST_ASSERT(decompressor_result.first && (decompressor_result.second != nullptr));
         test_block_compression(compressor_result.second, decompressor_result.second);
     };
@@ -167,21 +243,32 @@ MAXTEST_MAIN
         maxzip::zstd_compressor_params compress_params;
         maxzip::zstd_decompressor_params decompress_params;
         compress_params.window_log = -100;
-        auto compressor_result = try_create_compressor(maxzip::create_zstd_compressor, compress_params);
+        auto compressor_result = try_create<maxzip::compressor>(maxzip::create_zstd_compressor, compress_params);
         MAXTEST_ASSERT(!compressor_result.first && (compressor_result.second == nullptr));
         compress_params.window_log = 0;
         compress_params.enable_checksum = true;
-        compressor_result = try_create_compressor(maxzip::create_zstd_compressor, compress_params);
+        compressor_result = try_create<maxzip::compressor>(maxzip::create_zstd_compressor, compress_params);
         MAXTEST_ASSERT(compressor_result.first && (compressor_result.second != nullptr));
         decompress_params.window_log_max = -100;
-        auto decompressor_result = try_create_decompressor(maxzip::create_zstd_decompressor, decompress_params);
+        auto decompressor_result = try_create<maxzip::decompressor>(maxzip::create_zstd_decompressor, decompress_params);
         MAXTEST_ASSERT(!decompressor_result.first && (decompressor_result.second == nullptr));
         decompress_params.window_log_max = 0;
-        decompressor_result = try_create_decompressor(maxzip::create_zstd_decompressor, decompress_params);
+        decompressor_result = try_create<maxzip::decompressor>(maxzip::create_zstd_decompressor, decompress_params);
         MAXTEST_ASSERT(decompressor_result.first && (decompressor_result.second != nullptr));
         decompress_params.window_log_max.reset();
-        decompressor_result = try_create_decompressor(maxzip::create_zstd_decompressor, decompress_params);
+        decompressor_result = try_create<maxzip::decompressor>(maxzip::create_zstd_decompressor, decompress_params);
         MAXTEST_ASSERT(decompressor_result.first && (decompressor_result.second != nullptr));
         test_block_compression(compressor_result.second, decompressor_result.second);
+    };
+
+    MAXTEST_TEST_CASE(brotli::stream)
+    {
+        maxzip::brotli_encoder_params encoder_params;
+        maxzip::brotli_decoder_params decoder_params;
+        auto encoder_result = try_create<maxzip::stream>(maxzip::create_brotli_encoder, encoder_params);
+        MAXTEST_ASSERT(encoder_result.first && (encoder_result.second != nullptr));
+        auto decoder_result = try_create<maxzip::stream>(maxzip::create_brotli_decoder, decoder_params);
+        MAXTEST_ASSERT(decoder_result.first && (decoder_result.second != nullptr));
+        test_stream_compression(encoder_result.second, decoder_result.second);
     };
 }

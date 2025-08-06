@@ -39,8 +39,17 @@ namespace maxzip
         std::optional<int> stream_offset;
     };
 
+    struct brotli_decoder_params
+    {
+        std::optional<bool> disable_ring_buffer_reallocation;
+        std::optional<bool> large_window;
+    };
+
     stream *create_brotli_encoder(
         const brotli_encoder_params &params);
+
+    stream *create_brotli_decoder(
+        const brotli_decoder_params &params);
 
 }
 
