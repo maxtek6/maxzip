@@ -345,7 +345,7 @@ namespace maxzip
                 stream_process(
                     _handle.get(),
                     BROTLI_OPERATION_FINISH,
-                    nullptr, 0, &write_size, output, output_size, &write_size);
+                    nullptr, 0, nullptr, output, output_size, &write_size);
             }
             return stream_query(_handle.get());
         }
@@ -402,7 +402,7 @@ namespace maxzip
             {
                 stream_process(
                     _handle.get(),
-                    nullptr, 0, &write_size, output, output_size, &write_size);
+                    nullptr, 0, nullptr, output, output_size, &write_size);
             }
             return stream_query(_handle.get());
         }
