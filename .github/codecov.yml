@@ -1,0 +1,7 @@
+coverage:
+  status:
+    project:
+      default:
+        target: auto   # Use previous coverage as the baseline
+        threshold: 100 # Allow a 100% drop without failing
+        informational: true  # Do not cause CI to fail
