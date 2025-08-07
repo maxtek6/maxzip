@@ -122,6 +122,7 @@ namespace maxzip
     class stream_handle
     {
     public:
+        using context_type = ContextType;
         stream_handle() : _ctx(nullptr, Destructor) {}
         ~stream_handle() = default;
         void create()
@@ -264,7 +265,23 @@ namespace maxzip
             _config.configure(_handle.get());
         }
 
+        bool finish(
+            uint8_t *output,
+            size_t output_size,
+            size_t &write_size) override
+        {
+            if (StreamFunctions::stream_query(_handle.get()))
+            {
+                finish_stream(output, output_size, write_size);
+            }
+            return StreamFunctions::stream_query(_handle.get());
+        }
+
     protected:
+        virtual void finish_stream(
+            uint8_t *output,
+            size_t output_size,
+            size_t &write_size) = 0;
         HandleType _handle;
         ConfigType _config;
     };
@@ -335,19 +352,15 @@ namespace maxzip
                 &write_size);
         }
 
-        bool finish(
+        void finish_stream(
             uint8_t *output,
             size_t output_size,
             size_t &write_size) override
         {
-            if (stream_query(_handle.get()))
-            {
-                stream_process(
-                    _handle.get(),
-                    BROTLI_OPERATION_FINISH,
-                    nullptr, 0, nullptr, output, output_size, &write_size);
-            }
-            return stream_query(_handle.get());
+            stream_process(
+                _handle.get(),
+                BROTLI_OPERATION_FINISH,
+                nullptr, 0, nullptr, output, output_size, &write_size);
         }
 
         size_t input_block_size() const override
@@ -393,18 +406,14 @@ namespace maxzip
                 &write_size);
         }
 
-        bool finish(
+        void finish_stream(
             uint8_t *output,
             size_t output_size,
             size_t &write_size) override
         {
-            if (stream_query(_handle.get()))
-            {
-                stream_process(
-                    _handle.get(),
-                    nullptr, 0, nullptr, output, output_size, &write_size);
-            }
-            return stream_query(_handle.get());
+            stream_process(
+                _handle.get(),
+                nullptr, 0, nullptr, output, output_size, &write_size);
         }
 
         size_t input_block_size() const override
