@@ -99,7 +99,7 @@ private:
     {
         const auto block_sizes = stream->block_sizes();
         std::vector<uint8_t> input_buffer(block_sizes.first);
-        std::vector<uint8_t> output_buffer(block_sizes.second / (flush ? 2 : 1));
+        std::vector<uint8_t> output_buffer(block_sizes.second / (flush ? 10 : 1));
         size_t available_input = 0;
         bool finalizing(true);
         size_t finalizing_write_size = 0;
