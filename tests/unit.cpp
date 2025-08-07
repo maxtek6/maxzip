@@ -104,7 +104,13 @@ private:
         bool finalizing(true);
         size_t finalizing_write_size = 0;
 
+        MAXTEST_ASSERT(try_func([&]() {
+            stream->finalize(nullptr, 0, finalizing_write_size);
+        }));
+        MAXTEST_ASSERT(finalizing_write_size == 0);
+
         stream->initialize(flush);
+
         while(!input_stream.eof() || available_input > 0)
         {
             if (available_input > 0)
