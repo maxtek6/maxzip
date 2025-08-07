@@ -109,13 +109,3 @@ std::pair<size_t, size_t> maxzip::basic_stream::block_sizes() const
 {
     return {input_block_size(), output_block_size()};
 }
-
-size_t maxzip::basic_stream::input_block_size() const
-{
-    return 0; // Default implementation, can be overridden
-}
-
-size_t maxzip::basic_stream::output_block_size() const
-{
-    return 0; // Default implementation, can be overridden
-}   

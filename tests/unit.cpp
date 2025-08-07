@@ -104,10 +104,21 @@ private:
         bool finalizing(true);
         size_t finalizing_write_size = 0;
 
+        // finalize the stream before starting
         MAXTEST_ASSERT(try_func([&]() {
             stream->finalize(nullptr, 0, finalizing_write_size);
         }));
         MAXTEST_ASSERT(finalizing_write_size == 0);
+
+        std::string input_data("this should trigger an error");
+        MAXTEST_ASSERT(!try_func([&]() {
+            stream->update(
+                reinterpret_cast<const uint8_t *>(input_data.data()),
+                input_data.size(),
+                output_buffer.data(),
+                output_buffer.size());
+        }));
+
 
         stream->initialize(flush);
 

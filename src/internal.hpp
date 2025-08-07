@@ -102,9 +102,9 @@ namespace maxzip
             size_t output_size,
             size_t &write_size) = 0;
 
-        virtual size_t input_block_size() const;
+        virtual size_t input_block_size() const = 0;
 
-        virtual size_t output_block_size() const;
+        virtual size_t output_block_size() const = 0;
     private:
         enum class state
         {
