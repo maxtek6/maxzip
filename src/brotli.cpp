@@ -270,10 +270,7 @@ namespace maxzip
             size_t output_size,
             size_t &write_size) override
         {
-            if (StreamFunctions::stream_query(_handle.get()))
-            {
-                finish_stream(output, output_size, write_size);
-            }
+            finish_stream(output, output_size, write_size);
             return StreamFunctions::stream_query(_handle.get());
         }
 
