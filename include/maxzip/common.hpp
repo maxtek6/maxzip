@@ -25,6 +25,12 @@
 
 #include <cstdint>
 #include <cstddef>
+#include <functional>
 #include <optional>
+
+namespace maxzip
+{
+
+}
 
 #endif

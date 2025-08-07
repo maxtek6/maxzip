@@ -29,16 +29,16 @@ namespace maxzip
 {
     /**
      * @class compressor
-     * @brief Abstract base class for block compression
+     * @brief Abstract base class for block compression.
      */
     class compressor
     {
     public:
         /**
-         * @brief Compress a block of data
-         * @param input Pointer to the input data
-         * @param input_size Size of the input data in bytes
-         * @param output Pointer to the output buffer (can be nullptr)
+         * @brief Compress a block of data.
+         * @param input Pointer to the input data.
+         * @param input_size Size of the input data in bytes.
+         * @param output Pointer to the output buffer (can be nullptr).
          * @param output_size Reference to the size of the output buffer on input. If
          * output is nullptr, this will be set to the maximum compressed size.
          * @return The size of the compressed data in bytes, or 0 if output is nullptr.
